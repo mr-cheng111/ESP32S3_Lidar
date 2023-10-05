@@ -8,6 +8,10 @@
 #include <string>
 #include <Ticker.h>
 
+#include <sensor_msgs/msg/laser_scan.h>
+#include <micro_ros_utilities/string_utilities.h>
+
+
 using namespace std;
 
 #define LED_Pin 4
@@ -20,22 +24,12 @@ public:
             char* Pass_Word,
             String Host_Ip,
             uint16_t Port,
-            uint8_t Serial_Num);
+            int Serial_Num);
 
     lidar_t(uint8_t Serial_Num);
 
-    static void callback_subscription_(const void *msgin)
-    {
-        const std_msgs__msg__Int32 *msg = (const std_msgs__msg__Int32 *)msgin;
-        if(msg->data == 0)
-        {
-            digitalWrite(LED_Pin, LOW);
-        }
-        else
-        {
-            digitalWrite(LED_Pin, HIGH);
-        }
-    }
+    static void callback_subscription_(const void *msgin);
+
     void Node_Work_Start(void)
     {
         delay(100);
@@ -44,18 +38,22 @@ public:
 
     void Micro_Ros_Task()
     {
+        digitalWrite(LED_Pin, HIGH);
         while(true)
         {
             this->Node_Work_Start();
         }
     }
 
-    void lidar_Data_Task()
+    void Lidar_Data_Task()
     {
         while(true)
         {
-            this->Lidar_Serial->printf("Hello World\r\n");
-            delay(10);
+            if(!(this->Lidar_Serial->available() % 58))
+            {
+                this->Lidar_Serial->read(this->Lidar_Rx_Buffer,58);
+            }
+            delay(1);
         }
     }
 
@@ -67,23 +65,9 @@ public:
                     uint16_t Port,
                     uint16_t Wait_Time);
                     
-    void Ros_Serial_Init(int Serial_Num)
-    {
-        switch(Serial_Num)
-        {
-            case 0:this->Lidar_Serial = &Serial;break;
-            case 1:this->Lidar_Serial = &Serial1;break;
-            case 2:this->Lidar_Serial = &Serial2;break;
-            default :this->Lidar_Serial = &Serial;break;
-        }
-        // this->Lidar_Serial->setPins(15,16,-1,-1);
-        // this->Lidar_Serial->setRxBufferSize(57);
-        // this->Lidar_Serial->setTxBufferSize(1024);
-        this->Lidar_Serial->begin(115200);
-        // this->Lidar_Serial->setPins(15,16);
+    void Ros_Serial_Init(int Serial_Num);
 
-        //this->Lidar_Serial->onReceive(this->Usart_Callback_,0);
-    }
+    void Ros_Serial_Init(int Serial_Num,int Baud);
 
     static void Usart_Callback_(void)
     {
@@ -93,24 +77,9 @@ public:
 
 
     }
-
-
-
-
-
-    // void Ticker_Init()
-    // {
-    //     this->Tick.attach
-    // }
 public:
     Ticker Tick;
     HardwareSerial *Lidar_Serial;
-
-
-
-
-
-
 private:
     rclc_executor_t executor;
     rclc_support_t support;
@@ -118,11 +87,13 @@ private:
     rcl_node_t node;
     // 声明话题订阅者
     rcl_subscription_t subscriber;
+
+    //声明话题发布者
+    rcl_publisher_t publisher;           // 声明话题发布者
+    sensor_msgs__msg__LaserScan pub_msg; // 声明消息文件
+
     // 声明消息文件
     std_msgs__msg__Int32 sub_msg;
+    uint8_t Lidar_Rx_Buffer[58*4];
     
 };
-
-
-
-void lidar_a_Task(void *p);
